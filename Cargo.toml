@@ -1,0 +1,12 @@
+[package]
+name = "tazor"
+version = "1.0.0"
+authors = ["Bastian Gonzalez Acevedo <bastiangonzalezacevedo@gmail.com>"]
+edition = "2021"
+license-file = "LICENSE"
+description = "Tazor is Rust library implementing a calculator based on mathematical expression"
+repository = "https://github.com/BaGoA/Tazor"
+readme = "README.md"
+keywords = ["math-expressions", "calculator"]
+
+[dependencies]
