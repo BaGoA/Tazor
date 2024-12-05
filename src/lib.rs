@@ -1,22 +1,20 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
-/// Trait to define mathematical expression evaluator
-pub trait Evaluator {
-    /// Evaluate methematical expression given in argument
-    /// If error occurs during evaluation, an error message is stored in string contained in Result output.
-    /// Otherwise, the Result output contains the value of evaluation stored in 64-bits float.
-    fn evaluate(&self, expression: &String) -> Result<f64, String>;
-}
-
-pub struct Calculator<T: Evaluator> {
-    evaluator: T,                       // mathematical expression evaluator
+pub struct Calculator<Evaluator>
+where
+    Evaluator: Fn(&str) -> Result<f64, String>,
+{
+    evaluator: Evaluator,               // mathematical expression evaluator
     variables: HashMap<String, String>, // map to store custom variable defined by user, key is name of variable and value is its evaluation
 }
 
-impl<T: Evaluator> Calculator<T> {
+impl<Evaluator> Calculator<Evaluator>
+where
+    Evaluator: Fn(&str) -> Result<f64, String>,
+{
     /// Construct a calculator given an evaluator in argument
-    pub fn new(evaluator: T) -> Self {
+    pub fn new(evaluator: Evaluator) -> Self {
         return Self {
             evaluator,
             variables: HashMap::with_capacity(25),
@@ -27,9 +25,9 @@ impl<T: Evaluator> Calculator<T> {
     /// If error occurs during process, an error message is stored in string contained in Result output.
     /// Otherwise, the Result output contains the (key, value) storage in variable map, corresponding to name and value
     /// of evaluated expression
-    pub fn process(&mut self, expression: &String) -> Result<(String, String), String> {
+    pub fn process(&mut self, expression: &str) -> Result<(String, String), String> {
         let variable_name: String = String::from("last");
-        let variable_value: String = format!("{}", self.evaluator.evaluate(&expression)?);
+        let variable_value: String = format!("{}", (self.evaluator)(expression)?);
 
         self.variables
             .insert(variable_name.clone(), variable_value.clone());
@@ -43,31 +41,25 @@ mod tests {
     use super::*;
 
     // Define mock evaluator for units tests
-    #[derive(Default)]
-    struct MockEvaluator {}
-
-    impl Evaluator for MockEvaluator {
-        fn evaluate(&self, expression: &String) -> Result<f64, String> {
-            if expression.is_empty() {
-                return Err(String::from("Expression is empty"));
-            }
-
-            return Ok(expression.len() as f64);
+    fn evaluate(expression: &str) -> Result<f64, String> {
+        if expression.is_empty() {
+            return Err(String::from("Expression is empty"));
         }
+
+        return Ok(expression.len() as f64);
     }
 
     #[test]
     fn test_calculator_new() {
-        let evaluator: MockEvaluator = MockEvaluator::default();
-        let calculator: Calculator<MockEvaluator> = Calculator::<MockEvaluator>::new(evaluator);
+        let calculator = Calculator::new(evaluate);
 
         assert!(calculator.variables.capacity() > 0);
 
         let empty_expression: String = String::default();
-        assert!(calculator.evaluator.evaluate(&empty_expression).is_err());
+        assert!((calculator.evaluator)(empty_expression.as_str()).is_err());
 
         let expression: String = String::from("taz");
-        let result: Result<f64, String> = calculator.evaluator.evaluate(&expression);
+        let result: Result<f64, String> = (calculator.evaluator)(expression.as_str());
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap() as usize, expression.len())
@@ -75,12 +67,11 @@ mod tests {
 
     #[test]
     fn test_calculator_process_raw_expression() {
-        let evaluator: MockEvaluator = MockEvaluator::default();
-        let mut calculator: Calculator<MockEvaluator> = Calculator::<MockEvaluator>::new(evaluator);
+        let mut calculator = Calculator::new(evaluate);
 
         let expression: String = String::from("1 + 1");
 
-        match calculator.process(&expression) {
+        match calculator.process(expression.as_str()) {
             Ok((name, value)) => {
                 let variable_name: String = String::from("last");
                 assert_eq!(name, variable_name);
@@ -98,15 +89,14 @@ mod tests {
 
     #[test]
     fn test_calculator_process_several_raw_expression() {
-        let evaluator: MockEvaluator = MockEvaluator::default();
-        let mut calculator: Calculator<MockEvaluator> = Calculator::<MockEvaluator>::new(evaluator);
+        let mut calculator = Calculator::new(evaluate);
 
         // Evaluate first expression
         let first_expression: String = String::from("1 + 1");
 
         let variable_name: String = String::from("last");
 
-        match calculator.process(&first_expression) {
+        match calculator.process(first_expression.as_str()) {
             Ok((name, value)) => {
                 assert_eq!(name, variable_name);
 
@@ -124,7 +114,7 @@ mod tests {
         // The value of variable named 'last' must be replaced by value of second expression
         let second_expression: String = String::from("1 + 1 + 3");
 
-        match calculator.process(&second_expression) {
+        match calculator.process(second_expression.as_str()) {
             Ok((name, value)) => {
                 assert_eq!(name, variable_name);
 
