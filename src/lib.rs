@@ -1,12 +1,16 @@
 #![allow(dead_code)]
+pub mod expression;
+
+use expression::Expression;
+
 use std::collections::HashMap;
 
 pub struct Calculator<Evaluator>
 where
     Evaluator: Fn(&str) -> Result<f64, String>,
 {
-    evaluator: Evaluator,               // mathematical expression evaluator
-    variables: HashMap<String, String>, // map to store custom variable defined by user, key is name of variable and value is its evaluation
+    evaluator: Evaluator,            // mathematical expression evaluator
+    variables: HashMap<String, f64>, // map to store custom variable defined by user, key is name of variable and value is its evaluation
 }
 
 impl<Evaluator> Calculator<Evaluator>
@@ -25,14 +29,20 @@ where
     /// If error occurs during process, an error message is stored in string contained in Result output.
     /// Otherwise, the Result output contains the (key, value) storage in variable map, corresponding to name and value
     /// of evaluated expression
-    pub fn process(&mut self, expression: &str) -> Result<(String, String), String> {
-        let variable_name: String = String::from("last");
-        let variable_value: String = format!("{}", (self.evaluator)(expression)?);
+    pub fn process(&mut self, expression: &str) -> Result<(String, f64), String> {
+        let (name, value): (String, f64) = match Expression::new(expression) {
+            Expression::Raw(raw_expression) => (
+                String::from("last"),
+                (self.evaluator)(raw_expression.as_str())?,
+            ),
+            Expression::Variable(name, definition) => {
+                (name, (self.evaluator)(definition.as_str())?)
+            }
+        };
 
-        self.variables
-            .insert(variable_name.clone(), variable_value.clone());
+        self.variables.insert(name.clone(), value);
 
-        return Ok((variable_name, variable_value));
+        return Ok((name, value));
     }
 }
 
@@ -76,7 +86,7 @@ mod tests {
                 let variable_name: String = String::from("last");
                 assert_eq!(name, variable_name);
 
-                let variable_value: String = format!("{}", expression.len());
+                let variable_value: f64 = expression.len() as f64;
                 assert_eq!(value, variable_value);
 
                 assert_eq!(calculator.variables.len(), 1);
@@ -100,7 +110,7 @@ mod tests {
             Ok((name, value)) => {
                 assert_eq!(name, variable_name);
 
-                let variable_value: String = format!("{}", first_expression.len());
+                let variable_value: f64 = first_expression.len() as f64;
                 assert_eq!(value, variable_value);
 
                 assert_eq!(calculator.variables.len(), 1);
@@ -118,7 +128,7 @@ mod tests {
             Ok((name, value)) => {
                 assert_eq!(name, variable_name);
 
-                let variable_value: String = format!("{}", second_expression.len());
+                let variable_value: f64 = second_expression.len() as f64;
                 assert_eq!(value, variable_value);
 
                 assert_eq!(calculator.variables.len(), 1);
