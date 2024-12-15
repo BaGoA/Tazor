@@ -7,6 +7,11 @@ pub enum Expression {
 }
 
 impl Expression {
+    /// Construct an Expression from string
+    /// We can have following case:
+    ///   - raw expression as '1 + 1' or 'cos(pi) * sqrt(2)'
+    ///   - expression defining a variable like this 'x = 1 + 1'
+    ///  where left side of equality is its name and right side is its definition
     pub fn new(expression: &str) -> Self {
         return match expression.split_once('=') {
             Some((name, definition)) => Self::Variable(
