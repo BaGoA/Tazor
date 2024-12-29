@@ -29,8 +29,13 @@ where
     /// If error occurs during process, an error message is stored in string contained in Result output.
     /// Otherwise, the Result output contains the (key, value) storage in variable map, corresponding to name and value
     /// of evaluated expression
-    pub fn process(&mut self, expression: &str) -> Result<(String, f64), String> {
-        let (name, value): (String, f64) = match Expression::new(expression) {
+    pub fn process(&mut self, expression_str: &str) -> Result<(String, f64), String> {
+        // Create expression and replace all variable it contains
+        let mut expression: Expression = Expression::new(expression_str);
+        expression.replace_variables(&self.variables);
+
+        // Evaluate the expression and store it in variable hash map
+        let (name, value): (String, f64) = match expression {
             Expression::Raw(raw_expression) => (
                 String::from("last"),
                 (self.evaluator)(raw_expression.as_str())?,
@@ -134,6 +139,116 @@ mod tests {
                 assert_eq!(calculator.variables.len(), 1);
                 assert!(calculator.variables.contains_key(&variable_name));
                 assert_eq!(calculator.variables[&variable_name], variable_value);
+            }
+            Err(_) => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_calculator_process_variable_expression() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let variable_name: String = String::from("x");
+        let variable_definition: String = String::from("1 + 1");
+
+        let expression: String = format!("{} = {}", variable_name, variable_definition);
+
+        match calculator.process(expression.as_str()) {
+            Ok((name, value)) => {
+                assert_eq!(name, variable_name);
+
+                let variable_value: f64 = variable_definition.len() as f64;
+                assert_eq!(value, variable_value);
+
+                assert_eq!(calculator.variables.len(), 1);
+                assert!(calculator.variables.contains_key(&variable_name));
+                assert_eq!(calculator.variables[&variable_name], variable_value);
+            }
+            Err(_) => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_calculator_process_several_variable_expression() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let first_variable_name: String = String::from("x");
+        let first_variable_definition: String = String::from("1 + 1");
+
+        let first_expression: String =
+            format!("{} = {}", first_variable_name, first_variable_definition);
+
+        match calculator.process(first_expression.as_str()) {
+            Ok((name, value)) => {
+                assert_eq!(name, first_variable_name);
+
+                let variable_value: f64 = first_variable_definition.len() as f64;
+                assert_eq!(value, variable_value);
+
+                assert_eq!(calculator.variables.len(), 1);
+                assert!(calculator.variables.contains_key(&first_variable_name));
+                assert_eq!(calculator.variables[&first_variable_name], variable_value);
+            }
+            Err(_) => assert!(false),
+        }
+
+        let second_variable_name: String = String::from("y");
+        let second_variable_definition: String = String::from("9 + 1");
+
+        let second_expression: String =
+            format!("{} = {}", second_variable_name, second_variable_definition);
+
+        match calculator.process(second_expression.as_str()) {
+            Ok((name, value)) => {
+                assert_eq!(name, second_variable_name);
+
+                let variable_value: f64 = second_variable_definition.len() as f64;
+                assert_eq!(value, variable_value);
+
+                assert_eq!(calculator.variables.len(), 2);
+                assert!(calculator.variables.contains_key(&second_variable_name));
+                assert_eq!(calculator.variables[&second_variable_name], variable_value);
+            }
+            Err(_) => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_calculator_process_expression_with_variables() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let first_variable_name: String = String::from("x");
+        let first_variable_definition: String = String::from("1 + 1");
+
+        let first_expression: String =
+            format!("{} = {}", first_variable_name, first_variable_definition);
+
+        let first_process_result = calculator.process(first_expression.as_str());
+        assert!(first_process_result.is_ok());
+
+        let second_variable_name: String = String::from("y");
+        let second_variable_definition: String = String::from("97 + 1");
+
+        let second_expression: String =
+            format!("{} = {}", second_variable_name, second_variable_definition);
+
+        let second_process_result = calculator.process(second_expression.as_str());
+        assert!(second_process_result.is_ok());
+
+        let variable_name: String = String::from("distance");
+        let variable_definition: String = String::from("x + y");
+
+        let expression: String = format!("{} = {}", variable_name, variable_definition);
+
+        match calculator.process(expression.as_str()) {
+            Ok((name, value)) => {
+                assert_eq!(name, variable_name);
+
+                let variable_value: f64 = (first_variable_definition.len().to_string().len()
+                    + second_variable_definition.len().to_string().len()
+                    + 3) as f64;
+
+                assert_eq!(value, variable_value);
             }
             Err(_) => assert!(false),
         }
