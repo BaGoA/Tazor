@@ -43,6 +43,7 @@ where
             Expression::Variable(name, definition) => {
                 (name, (self.evaluator)(definition.as_str())?)
             }
+            Expression::Function(_, _, _) => todo!(),
         };
 
         self.variables.insert(name.clone(), value);

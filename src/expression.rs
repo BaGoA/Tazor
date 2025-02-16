@@ -4,8 +4,9 @@ use std::collections::HashMap;
 
 /// Kind of expression that we can parse
 pub enum Expression {
-    Raw(String),              // expression that we want only evaluate
+    Raw(String),                           // expression that we want only evaluate
     Variable(String, String), // expression defining a variable that we want store (name = definition)
+    Function(String, Vec<String>, String), // expression defining a function that we want store (name: x, y = definition)
 }
 
 impl Expression {
@@ -13,13 +14,34 @@ impl Expression {
     /// We can have following case:
     ///   - raw expression as '1 + 1' or 'cos(pi) * sqrt(2)'
     ///   - expression defining a variable like this 'x = 1 + 1'
+    ///   - expression defining a function like this 'f: x, y = x * x + y * y
     ///  where left side of equality is its name and right side is its definition
     pub fn new(expression: &str) -> Self {
         return match expression.split_once('=') {
-            Some((name, definition)) => Self::Variable(
-                String::from(name.trim_end()),
-                String::from(definition.trim_start()),
-            ),
+            // Here the expression define a variable or function
+            Some((name, definition)) => match name.split_once(':') {
+                // Here we have a function
+                Some((fun_name, fun_variables_compact)) => {
+                    let fun_variables: Vec<String> = fun_variables_compact
+                        .split(',')
+                        .map(|fun_variable_name: &str| {
+                            String::from(fun_variable_name.trim_start().trim_end())
+                        })
+                        .collect();
+
+                    return Self::Function(
+                        String::from(fun_name.trim_start().trim_end()),
+                        fun_variables,
+                        String::from(definition.trim_start().trim_end()),
+                    );
+                }
+                // Here we have a variable
+                None => Self::Variable(
+                    String::from(name.trim_start().trim_end()),
+                    String::from(definition.trim_start().trim_end()),
+                ),
+            },
+            // Here we have a raw expression
             None => Self::Raw(String::from(expression)),
         };
     }
@@ -31,6 +53,7 @@ impl Expression {
         let definition: &mut String = match self {
             Self::Raw(raw_expression) => raw_expression,
             Self::Variable(_, definition) => definition,
+            Self::Function(_, _, definition) => definition,
         };
 
         for (variable_name, variable_value) in variables {
@@ -52,7 +75,7 @@ mod tests {
 
         match Expression::new(expression.as_str()) {
             Expression::Raw(raw_expression) => assert_eq!(raw_expression, expression),
-            Expression::Variable(_, _) => assert!(false),
+            _ => assert!(false),
         }
     }
 
@@ -64,11 +87,37 @@ mod tests {
         let expression: String = format!("{} = {}", variable_name, variable_definition);
 
         match Expression::new(expression.as_str()) {
-            Expression::Raw(_) => assert!(false),
             Expression::Variable(name, definition) => {
                 assert_eq!(name, variable_name);
                 assert_eq!(definition, variable_definition);
             }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_expression_new_with_function_definition() {
+        let function_name: String = String::from("distance");
+        let function_variables: Vec<String> =
+            vec![String::from("x"), String::from("y"), String::from("z)")];
+        let function_definition: String = String::from("x * x + y * y + z * z");
+
+        let expression: String = format!(
+            "{}: {}, {}, {} = {}",
+            function_name,
+            function_variables[0],
+            function_variables[1],
+            function_variables[2],
+            function_definition
+        );
+
+        match Expression::new(&expression.as_str()) {
+            Expression::Function(name, variables, definition) => {
+                assert_eq!(name, function_name);
+                assert_eq!(variables, function_variables);
+                assert_eq!(definition, function_definition);
+            }
+            _ => assert!(false),
         }
     }
 
@@ -94,7 +143,7 @@ mod tests {
             Expression::Raw(replaced_expression) => {
                 assert_eq!(replaced_raw_expression, replaced_expression)
             }
-            Expression::Variable(_, _) => assert!(false),
+            _ => assert!(false),
         }
     }
 
@@ -117,10 +166,10 @@ mod tests {
         expression.replace_variables(&variables);
 
         match expression {
-            Expression::Raw(_) => assert!(false),
             Expression::Variable(_, replaced_expression) => {
                 assert_eq!(replaced_raw_expression, replaced_expression)
             }
+            _ => assert!(false),
         }
     }
 }
