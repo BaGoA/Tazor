@@ -11,6 +11,7 @@ where
 {
     evaluator: Evaluator,            // mathematical expression evaluator
     variables: HashMap<String, f64>, // map to store custom variable defined by user, key is name of variable and value is its evaluation
+    functions: HashMap<String, (Vec<String>, String)>, // map to store custom function defined by user, key is name of function and value is its expression (variables, definition)
 }
 
 impl<Evaluator> Calculator<Evaluator>
@@ -22,33 +23,50 @@ where
         return Self {
             evaluator,
             variables: HashMap::with_capacity(25),
+            functions: HashMap::with_capacity(25),
         };
     }
 
     /// Process an expression
     /// If error occurs during process, an error message is stored in string contained in Result output.
-    /// Otherwise, the Result output contains the (key, value) storage in variable map, corresponding to name and value
-    /// of evaluated expression
-    pub fn process(&mut self, expression_str: &str) -> Result<(String, f64), String> {
-        // Create expression and replace all variable it contains
+    /// Otherwise, the Result output contains string which represent result according to kind of expression:
+    ///     - raw => "last = evaluated_expression"
+    ///     - variable => "variable_name = variable_value"
+    ///     - function => "function_name(function_variables) = function_definition"
+    pub fn process(&mut self, expression_str: &str) -> Result<String, String> {
         let mut expression: Expression = Expression::new(expression_str);
+
+        expression.replace_functions(&self.functions);
         expression.replace_variables(&self.variables);
 
-        // Evaluate the expression and store it in variable hash map
-        let (name, value): (String, f64) = match expression {
-            Expression::Raw(raw_expression) => (
-                String::from("last"),
-                (self.evaluator)(raw_expression.as_str())?,
-            ),
-            Expression::Variable(name, definition) => {
-                (name, (self.evaluator)(definition.as_str())?)
+        let result: String = match expression {
+            Expression::Raw(raw_expression) => {
+                let value: f64 = (self.evaluator)(&raw_expression.as_str())?;
+
+                let raw_expression_result: String = format!("last = {}", value);
+                self.variables.insert(String::from("last"), value);
+
+                raw_expression_result
             }
-            Expression::Function(_, _, _) => todo!(),
+            Expression::Variable(name, definition) => {
+                let value: f64 = (self.evaluator)(&definition.as_str())?;
+
+                let variable_result: String = format!("{} = {}", name, value);
+                self.variables.insert(name, value);
+
+                variable_result
+            }
+            Expression::Function(name, variables, definition) => {
+                let function_result: String =
+                    format!("{}({}) = {}", name, variables.join(", "), definition);
+
+                self.functions.insert(name, (variables, definition));
+
+                function_result
+            }
         };
 
-        self.variables.insert(name.clone(), value);
-
-        return Ok((name, value));
+        return Ok(result);
     }
 }
 
@@ -88,12 +106,12 @@ mod tests {
         let expression: String = String::from("1 + 1");
 
         match calculator.process(expression.as_str()) {
-            Ok((name, value)) => {
+            Ok(str_result) => {
                 let variable_name: String = String::from("last");
-                assert_eq!(name, variable_name);
-
                 let variable_value: f64 = expression.len() as f64;
-                assert_eq!(value, variable_value);
+
+                let str_reference: String = format!("{} = {}", variable_name, variable_value);
+                assert_eq!(str_result, str_reference);
 
                 assert_eq!(calculator.variables.len(), 1);
                 assert!(calculator.variables.contains_key(&variable_name));
@@ -113,11 +131,11 @@ mod tests {
         let variable_name: String = String::from("last");
 
         match calculator.process(first_expression.as_str()) {
-            Ok((name, value)) => {
-                assert_eq!(name, variable_name);
-
+            Ok(str_result) => {
                 let variable_value: f64 = first_expression.len() as f64;
-                assert_eq!(value, variable_value);
+
+                let str_reference: String = format!("{} = {}", variable_name, variable_value);
+                assert_eq!(str_result, str_reference);
 
                 assert_eq!(calculator.variables.len(), 1);
                 assert!(calculator.variables.contains_key(&variable_name));
@@ -131,11 +149,11 @@ mod tests {
         let second_expression: String = String::from("1 + 1 + 3");
 
         match calculator.process(second_expression.as_str()) {
-            Ok((name, value)) => {
-                assert_eq!(name, variable_name);
-
+            Ok(str_result) => {
                 let variable_value: f64 = second_expression.len() as f64;
-                assert_eq!(value, variable_value);
+
+                let str_reference: String = format!("{} = {}", variable_name, variable_value);
+                assert_eq!(str_result, str_reference);
 
                 assert_eq!(calculator.variables.len(), 1);
                 assert!(calculator.variables.contains_key(&variable_name));
@@ -155,11 +173,11 @@ mod tests {
         let expression: String = format!("{} = {}", variable_name, variable_definition);
 
         match calculator.process(expression.as_str()) {
-            Ok((name, value)) => {
-                assert_eq!(name, variable_name);
-
+            Ok(str_result) => {
                 let variable_value: f64 = variable_definition.len() as f64;
-                assert_eq!(value, variable_value);
+
+                let str_reference: String = format!("{} = {}", variable_name, variable_value);
+                assert_eq!(str_result, str_reference);
 
                 assert_eq!(calculator.variables.len(), 1);
                 assert!(calculator.variables.contains_key(&variable_name));
@@ -180,11 +198,11 @@ mod tests {
             format!("{} = {}", first_variable_name, first_variable_definition);
 
         match calculator.process(first_expression.as_str()) {
-            Ok((name, value)) => {
-                assert_eq!(name, first_variable_name);
-
+            Ok(str_result) => {
                 let variable_value: f64 = first_variable_definition.len() as f64;
-                assert_eq!(value, variable_value);
+
+                let str_reference: String = format!("{} = {}", first_variable_name, variable_value);
+                assert_eq!(str_result, str_reference);
 
                 assert_eq!(calculator.variables.len(), 1);
                 assert!(calculator.variables.contains_key(&first_variable_name));
@@ -200,11 +218,13 @@ mod tests {
             format!("{} = {}", second_variable_name, second_variable_definition);
 
         match calculator.process(second_expression.as_str()) {
-            Ok((name, value)) => {
-                assert_eq!(name, second_variable_name);
-
+            Ok(str_result) => {
                 let variable_value: f64 = second_variable_definition.len() as f64;
-                assert_eq!(value, variable_value);
+
+                let str_reference: String =
+                    format!("{} = {}", second_variable_name, variable_value);
+
+                assert_eq!(str_result, str_reference);
 
                 assert_eq!(calculator.variables.len(), 2);
                 assert!(calculator.variables.contains_key(&second_variable_name));
@@ -242,14 +262,13 @@ mod tests {
         let expression: String = format!("{} = {}", variable_name, variable_definition);
 
         match calculator.process(expression.as_str()) {
-            Ok((name, value)) => {
-                assert_eq!(name, variable_name);
-
+            Ok(str_result) => {
                 let variable_value: f64 = (first_variable_definition.len().to_string().len()
                     + second_variable_definition.len().to_string().len()
                     + 3) as f64;
 
-                assert_eq!(value, variable_value);
+                let str_reference: String = format!("{} = {}", variable_name, variable_value);
+                assert_eq!(str_result, str_reference);
             }
             Err(_) => assert!(false),
         }

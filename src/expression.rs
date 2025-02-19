@@ -63,6 +63,14 @@ impl Expression {
             let _ = std::mem::swap(definition, &mut replaced_definition);
         }
     }
+
+    /// Replace all function contained in expression by their definition
+    /// The function are given in argument through HashMap where
+    /// key correspond to name of function and value is a pair containing
+    /// name of variables and definition of function
+    pub fn replace_functions(&mut self, _functions: &HashMap<String, (Vec<String>, String)>) {
+        // todo!();
+    }
 }
 
 #[cfg(test)]
