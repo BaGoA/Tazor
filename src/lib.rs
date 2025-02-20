@@ -273,4 +273,191 @@ mod tests {
             Err(_) => assert!(false),
         }
     }
+
+    #[test]
+    fn test_calculator_process_function_expression() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let function_name: String = String::from("distance");
+        let function_variables: Vec<String> = vec![String::from("x"), String::from("y")];
+        let function_definition: String = format!(
+            "{} * {} + {} * {}",
+            function_variables[0],
+            function_variables[0],
+            function_variables[1],
+            function_variables[1]
+        );
+
+        let expression: String = format!(
+            "{}: {}, {} = {}",
+            function_name, function_variables[0], function_variables[1], function_definition
+        );
+
+        match calculator.process(expression.as_str()) {
+            Ok(str_result) => {
+                let str_reference: String = format!(
+                    "{}({}) = {}",
+                    function_name,
+                    function_variables.join(", "),
+                    function_definition
+                );
+
+                assert_eq!(str_result, str_reference);
+
+                assert_eq!(calculator.functions.len(), 1);
+                assert!(calculator.functions.contains_key(&function_name));
+                assert_eq!(
+                    calculator.functions[&function_name],
+                    (function_variables, function_definition)
+                );
+            }
+            Err(_) => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_calculator_process_several_function_expression() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let first_function_name: String = String::from("distance");
+        let first_function_variables: Vec<String> = vec![String::from("x"), String::from("y")];
+        let first_function_definition: String = format!(
+            "{} * {} + {} * {}",
+            first_function_variables[0],
+            first_function_variables[0],
+            first_function_variables[1],
+            first_function_variables[1]
+        );
+
+        let first_expression: String = format!(
+            "{}: {}, {} = {}",
+            first_function_name,
+            first_function_variables[0],
+            first_function_variables[1],
+            first_function_definition
+        );
+
+        match calculator.process(first_expression.as_str()) {
+            Ok(str_result) => {
+                let str_reference: String = format!(
+                    "{}({}) = {}",
+                    first_function_name,
+                    first_function_variables.join(", "),
+                    first_function_definition
+                );
+
+                assert_eq!(str_result, str_reference);
+
+                assert_eq!(calculator.functions.len(), 1);
+                assert!(calculator.functions.contains_key(&first_function_name));
+                assert_eq!(
+                    calculator.functions[&first_function_name],
+                    (first_function_variables, first_function_definition)
+                );
+            }
+            Err(_) => assert!(false),
+        }
+
+        let second_function_name: String = String::from("velocity");
+        let second_function_variables: Vec<String> =
+            vec![String::from("distance"), String::from("time")];
+
+        let second_function_definition: String = format!(
+            "{} / {}",
+            second_function_variables[0], second_function_variables[1]
+        );
+
+        let second_expression: String = format!(
+            "{}: {}, {} = {}",
+            second_function_name,
+            second_function_variables[0],
+            second_function_variables[1],
+            second_function_definition
+        );
+
+        match calculator.process(second_expression.as_str()) {
+            Ok(str_result) => {
+                let str_reference: String = format!(
+                    "{}({}) = {}",
+                    second_function_name,
+                    second_function_variables.join(", "),
+                    second_function_definition
+                );
+
+                assert_eq!(str_result, str_reference);
+
+                assert_eq!(calculator.functions.len(), 2);
+                assert!(calculator.functions.contains_key(&second_function_name));
+                assert_eq!(
+                    calculator.functions[&second_function_name],
+                    (second_function_variables, second_function_definition)
+                );
+            }
+            Err(_) => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_calculator_process_expression_with_functions() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let first_function_name: String = String::from("distance");
+        let first_function_variables: Vec<String> = vec![String::from("x"), String::from("y")];
+        let first_function_definition: String = format!(
+            "{} * {} + {} * {}",
+            first_function_variables[0],
+            first_function_variables[0],
+            first_function_variables[1],
+            first_function_variables[1]
+        );
+
+        let first_function_expression: String = format!(
+            "{}: {}, {} = {}",
+            first_function_name,
+            first_function_variables[0],
+            first_function_variables[1],
+            first_function_definition
+        );
+
+        assert!(calculator
+            .process(first_function_expression.as_str())
+            .is_ok());
+
+        let second_function_name: String = String::from("velocity");
+        let second_function_variables: Vec<String> =
+            vec![String::from("distance"), String::from("time")];
+
+        let second_function_definition: String = format!(
+            "{} / {}",
+            second_function_variables[0], second_function_variables[1]
+        );
+
+        let second_function_expression: String = format!(
+            "{}: {}, {} = {}",
+            second_function_name,
+            second_function_variables[0],
+            second_function_variables[1],
+            second_function_definition
+        );
+
+        assert!(calculator
+            .process(second_function_expression.as_str())
+            .is_ok());
+
+        let expression: String = format!(
+            "3.14 * {}({}(2.4, 4.3), 5.43) + (2 * 3 - 7)",
+            second_function_name, first_function_name
+        );
+
+        let replaced_expression: String =
+            String::from("3.14 * ((2.4 * 2.4 + 4.3 * 4.3) / 5.43) + (2 * 3 - 7)");
+
+        match calculator.process(expression.as_str()) {
+            Ok(str_result) => {
+                let str_reference: String = format!("last = {}", replaced_expression.len());
+                assert_eq!(str_result, str_reference);
+            }
+            Err(_) => assert!(false),
+        }
+    }
 }

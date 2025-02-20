@@ -69,7 +69,7 @@ impl Expression {
     /// key correspond to name of function and value is a pair containing
     /// name of variables and definition of function
     pub fn replace_functions(&mut self, _functions: &HashMap<String, (Vec<String>, String)>) {
-        // todo!();
+        // TODO
     }
 }
 
@@ -163,19 +163,83 @@ mod tests {
         variables.insert(String::from("velocity"), 3.43);
         variables.insert(String::from("time"), 5.9954);
 
-        let raw_expression: String = String::from("y = (x - 2.75) + velocity * time");
+        let var_expression: String = String::from("y = (x - 2.75) + velocity * time");
 
-        let replaced_raw_expression: String = format!(
+        let replaced_var_expression: String = format!(
             "({} - 2.75) + {} * {}",
             variables["x"], variables["velocity"], variables["time"]
         );
 
-        let mut expression: Expression = Expression::new(raw_expression.as_str());
+        let mut expression: Expression = Expression::new(var_expression.as_str());
         expression.replace_variables(&variables);
 
         match expression {
             Expression::Variable(_, replaced_expression) => {
+                assert_eq!(replaced_var_expression, replaced_expression)
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_expression_replace_functions_in_raw_expression() {
+        let mut functions: HashMap<String, (Vec<String>, String)> = HashMap::new();
+
+        functions.insert(
+            String::from("distance"),
+            (
+                vec![String::from("x"), String::from("y")],
+                String::from("x * x + y * y"),
+            ),
+        );
+
+        functions.insert(
+            String::from("f"),
+            (vec![String::from("a")], String::from("a + 1")),
+        );
+
+        let raw_expression: String = String::from("distance(2.0, 3.3) + f(5.2) * 3");
+        let replaced_raw_expression: String =
+            String::from("(2.0 * 2.0 + 3.3 * 3.3) + (5.2 + 1) * 3");
+
+        let mut expression: Expression = Expression::new(raw_expression.as_str());
+        expression.replace_functions(&functions);
+
+        match expression {
+            Expression::Raw(replaced_expression) => {
                 assert_eq!(replaced_raw_expression, replaced_expression)
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_expression_replace_functions_in_variable_expression() {
+        let mut functions: HashMap<String, (Vec<String>, String)> = HashMap::new();
+
+        functions.insert(
+            String::from("distance"),
+            (
+                vec![String::from("x"), String::from("y")],
+                String::from("x * x + y * y"),
+            ),
+        );
+
+        functions.insert(
+            String::from("f"),
+            (vec![String::from("a")], String::from("a + 1")),
+        );
+
+        let var_expression: String = String::from("d = distance(2.0, 3.3) + f(5.2) * 3");
+        let replaced_var_expression: String =
+            String::from("(2.0 * 2.0 + 3.3 * 3.3) + (5.2 + 1) * 3");
+
+        let mut expression: Expression = Expression::new(var_expression.as_str());
+        expression.replace_functions(&functions);
+
+        match expression {
+            Expression::Variable(_, replaced_expression) => {
+                assert_eq!(replaced_var_expression, replaced_expression)
             }
             _ => assert!(false),
         }
