@@ -68,8 +68,34 @@ impl Expression {
     /// The function are given in argument through HashMap where
     /// key correspond to name of function and value is a pair containing
     /// name of variables and definition of function
-    pub fn replace_functions(&mut self, _functions: &HashMap<String, (Vec<String>, String)>) {
-        // TODO
+    pub fn replace_functions(&mut self, functions: &HashMap<String, (Vec<String>, String)>) {
+        let definition: &mut String = match self {
+            Self::Raw(raw_expression) => raw_expression,
+            Self::Variable(_, definition) => definition,
+            Self::Function(_, _, definition) => definition,
+        };
+
+        while let Some(fun_name) = functions
+            .keys()
+            .find(|&fun_name| definition.contains(fun_name))
+        {
+            let start_position: usize = definition.find(fun_name.as_str()).unwrap();
+
+            if let Some(end_position) = definition
+                .chars()
+                .skip(start_position + fun_name.len())
+                .position(|c| c == ')')
+            {
+                // create string to replace function call
+                // TODO
+                let mut replaced_fun_definition: String = functions[fun_name].1.clone();
+
+                definition.replace_range(
+                    start_position..=end_position,
+                    replaced_fun_definition.as_str(),
+                );
+            }
+        }
     }
 }
 
