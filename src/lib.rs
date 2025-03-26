@@ -36,7 +36,7 @@ where
     pub fn process(&mut self, expression_str: &str) -> Result<String, String> {
         let mut expression: Expression = Expression::new(expression_str);
 
-        expression.replace_functions(&self.functions);
+        expression.replace_functions(&self.functions)?;
         expression.replace_variables(&self.variables);
 
         let result: String = match expression {

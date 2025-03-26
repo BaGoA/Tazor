@@ -60,7 +60,7 @@ impl Expression {
             let mut replaced_definition: String =
                 definition.replace(variable_name, format!("{}", variable_value).as_str());
 
-            let _ = std::mem::swap(definition, &mut replaced_definition);
+            core::mem::swap(definition, &mut replaced_definition);
         }
     }
 
@@ -68,7 +68,10 @@ impl Expression {
     /// The function are given in argument through HashMap where
     /// key correspond to name of function and value is a pair containing
     /// name of variables and definition of function
-    pub fn replace_functions(&mut self, functions: &HashMap<String, (Vec<String>, String)>) {
+    pub fn replace_functions(
+        &mut self,
+        functions: &HashMap<String, (Vec<String>, String)>,
+    ) -> Result<(), String> {
         let definition: &mut String = match self {
             Self::Raw(raw_expression) => raw_expression,
             Self::Variable(_, definition) => definition,
@@ -80,22 +83,58 @@ impl Expression {
             .find(|&fun_name| definition.contains(fun_name))
         {
             let start_position: usize = definition.find(fun_name.as_str()).unwrap();
+            let start_search_parenthesis_position: usize = start_position + fun_name.len();
 
-            if let Some(end_position) = definition
-                .chars()
-                .skip(start_position + fun_name.len())
-                .position(|c| c == ')')
-            {
-                // create string to replace function call
-                // TODO
-                let mut replaced_fun_definition: String = functions[fun_name].1.clone();
+            let opening_parenthesis_position: usize = start_search_parenthesis_position
+                + definition
+                    .chars()
+                    .skip(start_search_parenthesis_position)
+                    .position(|c| c == '(')
+                    .ok_or(format!(
+                        "Error occurs in call of function {}: Missing parenthesis",
+                        fun_name
+                    ))?;
 
-                definition.replace_range(
-                    start_position..=end_position,
-                    replaced_fun_definition.as_str(),
-                );
+            let closing_parenthesis_position: usize = start_search_parenthesis_position
+                + definition
+                    .chars()
+                    .skip(start_search_parenthesis_position)
+                    .position(|c| c == ')')
+                    .ok_or(format!(
+                        "Error occurs in call of function {}: Missing parenthesis",
+                        fun_name
+                    ))?;
+
+            // get value of function variables
+            let variable_values: Vec<&str> = definition
+                [(opening_parenthesis_position + 1)..closing_parenthesis_position]
+                .split(", ")
+                .collect();
+
+            // create string to replace function call by function body
+            let variables: &Vec<String> = functions[fun_name].0.as_ref();
+            let mut replaced_fun_definition: String = functions[fun_name].1.clone();
+
+            if variables.len() != variable_values.len() {
+                return Err(format!("The number of variables is not consistent"));
             }
+
+            let mut id: usize = 0;
+
+            for variable in variables {
+                replaced_fun_definition =
+                    replaced_fun_definition.replace(variable, variable_values[id]);
+
+                id += 1;
+            }
+
+            definition.replace_range(
+                start_position..=closing_parenthesis_position,
+                format!("({})", replaced_fun_definition).as_str(),
+            );
         }
+
+        return Ok(());
     }
 }
 
@@ -229,7 +268,7 @@ mod tests {
             String::from("(2.0 * 2.0 + 3.3 * 3.3) + (5.2 + 1) * 3");
 
         let mut expression: Expression = Expression::new(raw_expression.as_str());
-        expression.replace_functions(&functions);
+        expression.replace_functions(&functions).unwrap();
 
         match expression {
             Expression::Raw(replaced_expression) => {
@@ -261,7 +300,7 @@ mod tests {
             String::from("(2.0 * 2.0 + 3.3 * 3.3) + (5.2 + 1) * 3");
 
         let mut expression: Expression = Expression::new(var_expression.as_str());
-        expression.replace_functions(&functions);
+        expression.replace_functions(&functions).unwrap();
 
         match expression {
             Expression::Variable(_, replaced_expression) => {
