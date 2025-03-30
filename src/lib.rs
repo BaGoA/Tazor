@@ -460,4 +460,87 @@ mod tests {
             Err(_) => assert!(false),
         }
     }
+
+    #[test]
+    fn test_calculator_process_expression_with_variables_and_functions() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let first_function_name: String = String::from("distance");
+        let first_function_variables: Vec<String> = vec![String::from("x"), String::from("y")];
+        let first_function_definition: String = format!(
+            "{} * {} + {} * {}",
+            first_function_variables[0],
+            first_function_variables[0],
+            first_function_variables[1],
+            first_function_variables[1]
+        );
+
+        let first_function_expression: String = format!(
+            "{}: {}, {} = {}",
+            first_function_name,
+            first_function_variables[0],
+            first_function_variables[1],
+            first_function_definition
+        );
+
+        assert!(calculator
+            .process(first_function_expression.as_str())
+            .is_ok());
+
+        let second_function_name: String = String::from("velocity");
+        let second_function_variables: Vec<String> =
+            vec![String::from("distance"), String::from("time")];
+
+        let second_function_definition: String = format!(
+            "{} / {}",
+            second_function_variables[0], second_function_variables[1]
+        );
+
+        let second_function_expression: String = format!(
+            "{}: {}, {} = {}",
+            second_function_name,
+            second_function_variables[0],
+            second_function_variables[1],
+            second_function_definition
+        );
+
+        assert!(calculator
+            .process(second_function_expression.as_str())
+            .is_ok());
+
+        let first_variable_name: String = String::from("x");
+        let first_variable_definition: String = String::from("1 + 1");
+
+        let first_expression: String =
+            format!("{} = {}", first_variable_name, first_variable_definition);
+
+        assert!(calculator.process(first_expression.as_str()).is_ok());
+
+        let second_variable_name: String = String::from("y");
+        let second_variable_definition: String = String::from("97 + 1");
+
+        let second_expression: String =
+            format!("{} = {}", second_variable_name, second_variable_definition);
+
+        assert!(calculator.process(second_expression.as_str()).is_ok());
+
+        let expression: String = format!(
+            "3.14 * {}({}, {}) - {}(2.4, 4.3) + (2 * 3 - 7)",
+            second_function_name, first_variable_name, second_variable_name, first_function_name
+        );
+
+        let replaced_expression: String = format!(
+            "3.14 * ({} / {}) - (2.4 * 2.4 + 4.3 * 4.3) + (2 * 3 - 7)",
+            first_variable_definition.len(),
+            second_variable_definition.len()
+        );
+
+        match calculator.process(expression.as_str()) {
+            Ok(str_result) => {
+                let str_reference: String = format!("last = {}", replaced_expression.len());
+                assert_eq!(str_result, str_reference);
+            }
+            Err(_) => assert!(false),
+        }
+    }
 }
