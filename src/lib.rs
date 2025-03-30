@@ -445,12 +445,12 @@ mod tests {
             .is_ok());
 
         let expression: String = format!(
-            "3.14 * {}({}(2.4, 4.3), 5.43) + (2 * 3 - 7)",
+            "3.14 * {}(6.89, 5.43) - {}(2.4, 4.3) + (2 * 3 - 7)",
             second_function_name, first_function_name
         );
 
         let replaced_expression: String =
-            String::from("3.14 * ((2.4 * 2.4 + 4.3 * 4.3) / 5.43) + (2 * 3 - 7)");
+            String::from("3.14 * (6.89 / 5.43) - (2.4 * 2.4 + 4.3 * 4.3) + (2 * 3 - 7)");
 
         match calculator.process(expression.as_str()) {
             Ok(str_result) => {

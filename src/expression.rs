@@ -64,6 +64,68 @@ impl Expression {
         }
     }
 
+    /// Recovery positions of function and its parenthesis in expression definition
+    /// Expression defintion and function name are given in argument
+    fn get_function_positions(
+        expression_definition: &String,
+        fun_name: &String,
+    ) -> Result<Option<(usize, usize, usize)>, String> {
+        let potential_start_position: Option<usize> = expression_definition.find(fun_name.as_str());
+
+        if potential_start_position.is_none() {
+            return Ok(None);
+        }
+
+        let start_position: usize = potential_start_position.unwrap();
+
+        let start_search_parenthesis_position: usize = start_position + fun_name.len();
+
+        let potential_opening_parenthesis_position: Option<usize> = expression_definition
+            .chars()
+            .skip(start_search_parenthesis_position)
+            .position(|c| c == '(');
+
+        if potential_opening_parenthesis_position.is_none() {
+            return Ok(None);
+        }
+
+        let opening_parenthesis_position: usize =
+            start_search_parenthesis_position + potential_opening_parenthesis_position.unwrap();
+
+        let closing_parenthesis_position: usize = start_search_parenthesis_position
+            + expression_definition
+                .chars()
+                .skip(start_search_parenthesis_position)
+                .position(|c| c == ')')
+                .ok_or(format!(
+                    "Error occurs in call of function {}: Missing closing parenthesis",
+                    fun_name
+                ))?;
+
+        // check if we handle a function, else we go to next function name
+        let has_char_between_fun_name_and_first_parenthesis: bool = expression_definition
+            [start_search_parenthesis_position..opening_parenthesis_position]
+            .chars()
+            .any(|c| !c.is_whitespace());
+
+        let has_opening_parenthesis_between_parenthesis: bool = expression_definition
+            [(opening_parenthesis_position + 1)..closing_parenthesis_position]
+            .chars()
+            .any(|c| c == '(');
+
+        if has_char_between_fun_name_and_first_parenthesis
+            || has_opening_parenthesis_between_parenthesis
+        {
+            return Ok(None);
+        }
+
+        return Ok(Some((
+            start_position,
+            opening_parenthesis_position,
+            closing_parenthesis_position,
+        )));
+    }
+
     /// Replace all function contained in expression by their definition
     /// The function are given in argument through HashMap where
     /// key correspond to name of function and value is a pair containing
@@ -78,32 +140,18 @@ impl Expression {
             Self::Function(_, _, definition) => definition,
         };
 
-        while let Some(fun_name) = functions
-            .keys()
-            .find(|&fun_name| definition.contains(fun_name))
-        {
-            let start_position: usize = definition.find(fun_name.as_str()).unwrap();
-            let start_search_parenthesis_position: usize = start_position + fun_name.len();
+        for fun_name in functions.keys() {
+            // get positions of function name and its parenthesis
+            let potential_positions: Option<(usize, usize, usize)> =
+                Expression::get_function_positions(&definition, fun_name)?;
 
-            let opening_parenthesis_position: usize = start_search_parenthesis_position
-                + definition
-                    .chars()
-                    .skip(start_search_parenthesis_position)
-                    .position(|c| c == '(')
-                    .ok_or(format!(
-                        "Error occurs in call of function {}: Missing parenthesis",
-                        fun_name
-                    ))?;
+            if potential_positions.is_none() {
+                // here the functions is not in expression definition
+                continue;
+            }
 
-            let closing_parenthesis_position: usize = start_search_parenthesis_position
-                + definition
-                    .chars()
-                    .skip(start_search_parenthesis_position)
-                    .position(|c| c == ')')
-                    .ok_or(format!(
-                        "Error occurs in call of function {}: Missing parenthesis",
-                        fun_name
-                    ))?;
+            let (start_position, opening_parenthesis_position, closing_parenthesis_position) =
+                potential_positions.unwrap();
 
             // get value of function variables
             let variable_values: Vec<&str> = definition
