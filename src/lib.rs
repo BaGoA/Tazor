@@ -1,10 +1,95 @@
-#![allow(dead_code)]
 pub mod expression;
 
 use expression::Expression;
 
 use std::collections::HashMap;
 
+/// Evaluate mathematical expression and store user-define variable and function to reuse it after.
+///
+/// The calculator is based on Evaluator which is a function taking a string, representing a mathematical expression
+/// and return the value of evaluation on 64-bit float.
+///
+/// # Example with simple expression
+/// ```
+/// use tazor;
+///
+/// fn evaluate(expression: &str) -> Result<f64, String> {
+///     if expression.is_empty() {
+///         return Err(String::from("Expression is empty"));
+///     }
+///
+///     return Ok(expression.len() as f64);
+/// }
+///
+/// let mut calculator = tazor::Calculator::new(evaluate);
+///
+/// let expression: String = String::from("1 + 1");
+///
+/// match calculator.process(expression.as_str()) {
+///     Ok(str_result) => println!("{}", str_result),
+///     Err(_) => assert!(false),
+/// }
+///
+/// ```
+///
+/// # Example with expression defining variables and use it in other expression
+/// ```
+/// use tazor;
+///
+/// fn evaluate(expression: &str) -> Result<f64, String> {
+///     if expression.is_empty() {
+///         return Err(String::from("Expression is empty"));
+///     }
+///
+///     return Ok(expression.len() as f64);
+/// }
+///
+/// let mut calculator = tazor::Calculator::new(evaluate);
+///
+/// let variable_x: String = String::from("x = 4.5 * 23.67");
+/// assert!(calculator.process(variable_x.as_str()).is_ok());
+///
+/// let variable_y: String = String::from("y = 43.5 + 2.75");
+/// assert!(calculator.process(variable_y.as_str()).is_ok());
+///
+/// let expression: String = String::from("x * x + y * y");
+///
+/// match calculator.process(expression.as_str()) {
+///     Ok(str_result) => println!("{}", str_result),
+///     Err(_) => assert!(false),
+/// }
+///
+/// ```
+///
+/// # Example with expression defining a variable, a function and use it in other expression
+/// ```
+/// use tazor;
+///
+/// fn evaluate(expression: &str) -> Result<f64, String> {
+///     if expression.is_empty() {
+///         return Err(String::from("Expression is empty"));
+///     }
+///
+///     return Ok(expression.len() as f64);
+/// }
+///
+/// let mut calculator = tazor::Calculator::new(evaluate);
+///
+/// let factor: String = String::from("factor = 4.5 * 23.67");
+/// assert!(calculator.process(factor.as_str()).is_ok());
+///
+/// let function: String = String::from("f: x, y = factor * (x * x + y * y)");
+/// assert!(calculator.process(function.as_str()).is_ok());
+///
+/// let expression: String = String::from("f(1,75, 2.54) + 2.43");
+///
+/// match calculator.process(expression.as_str()) {
+///     Ok(str_result) => println!("{}", str_result),
+///     Err(_) => assert!(false),
+/// }
+///
+/// ```
+///
 pub struct Calculator<Evaluator>
 where
     Evaluator: Fn(&str) -> Result<f64, String>,
@@ -28,11 +113,14 @@ where
     }
 
     /// Process an expression
+    ///
     /// If error occurs during process, an error message is stored in string contained in Result output.
+    ///
     /// Otherwise, the Result output contains string which represent result according to kind of expression:
-    ///     - raw => "last = evaluated_expression"
-    ///     - variable => "variable_name = variable_value"
-    ///     - function => "function_name(function_variables) = function_definition"
+    ///    - raw => `last = evaluated_expression`
+    ///    - variable => `variable_name = variable_value`
+    ///    - function => `function_name(function_variables) = function_definition`
+    ///
     pub fn process(&mut self, expression_str: &str) -> Result<String, String> {
         let mut expression: Expression = Expression::new(expression_str);
 

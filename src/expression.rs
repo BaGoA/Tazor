@@ -1,21 +1,27 @@
-#![allow(dead_code)]
-
 use std::collections::HashMap;
 
 /// Kind of expression that we can parse
+///
+/// Raw expression is an expression that we want directly evaluate as `1 + 1`
+///
+/// Variable is an expression defining a variable that we want store.
+/// It follows the template `variable_name = variable_definition`
+///
+/// ex: `x = 1 + 1`
+///
+/// Function is an expression defining a fucntion that we want store.
+/// It follows the template `function_name: function_variable_1, function_variable_2, ... = function definition`
+///
+/// ex: `f: x, y = x * x + y * y`
+///
 pub enum Expression {
-    Raw(String),                           // expression that we want only evaluate
-    Variable(String, String), // expression defining a variable that we want store (name = definition)
-    Function(String, Vec<String>, String), // expression defining a function that we want store (name: x, y = definition)
+    Raw(String),
+    Variable(String, String),
+    Function(String, Vec<String>, String),
 }
 
 impl Expression {
     /// Construct an Expression from string
-    /// We can have following case:
-    ///   - raw expression as '1 + 1' or 'cos(pi) * sqrt(2)'
-    ///   - expression defining a variable like this 'x = 1 + 1'
-    ///   - expression defining a function like this 'f: x, y = x * x + y * y
-    ///  where left side of equality is its name and right side is its definition
     pub fn new(expression: &str) -> Self {
         return match expression.split_once('=') {
             // Here the expression define a variable or function
@@ -47,6 +53,7 @@ impl Expression {
     }
 
     /// Replace all variable contained in expression by their value
+    ///
     /// The variables are given in argument through HashMap where
     /// pair (key, value) correspond respectively to name and value of variable
     pub fn replace_variables(&mut self, variables: &HashMap<String, f64>) {
@@ -65,11 +72,12 @@ impl Expression {
     }
 
     /// Recovery positions of function and its parenthesis in expression definition
-    /// Expression defintion and function name are given in argument
+    /// Expression definition and function name are given in argument
     fn get_function_positions(
         expression_definition: &String,
         fun_name: &String,
     ) -> Result<Option<(usize, usize, usize)>, String> {
+        // Get position of function and its parenthesis
         let potential_start_position: Option<usize> = expression_definition.find(fun_name.as_str());
 
         if potential_start_position.is_none() {
@@ -102,7 +110,7 @@ impl Expression {
                     fun_name
                 ))?;
 
-        // check if we handle a function, else we go to next function name
+        // Check if we handle a function, else we go to next function name
         let has_char_between_fun_name_and_first_parenthesis: bool = expression_definition
             [start_search_parenthesis_position..opening_parenthesis_position]
             .chars()
@@ -127,6 +135,7 @@ impl Expression {
     }
 
     /// Replace all function contained in expression by their definition
+    ///
     /// The function are given in argument through HashMap where
     /// key correspond to name of function and value is a pair containing
     /// name of variables and definition of function
@@ -141,7 +150,7 @@ impl Expression {
         };
 
         for fun_name in functions.keys() {
-            // get positions of function name and its parenthesis
+            // Get positions of function name and its parenthesis
             let potential_positions: Option<(usize, usize, usize)> =
                 Expression::get_function_positions(&definition, fun_name)?;
 
@@ -153,13 +162,13 @@ impl Expression {
             let (start_position, opening_parenthesis_position, closing_parenthesis_position) =
                 potential_positions.unwrap();
 
-            // get value of function variables
+            // Get value of function variables
             let variable_values: Vec<&str> = definition
                 [(opening_parenthesis_position + 1)..closing_parenthesis_position]
                 .split(", ")
                 .collect();
 
-            // create string to replace function call by function body
+            // Create string to replace function call by function body
             let variables: &Vec<String> = functions[fun_name].0.as_ref();
             let mut replaced_fun_definition: String = functions[fun_name].1.clone();
 
