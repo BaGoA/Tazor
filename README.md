@@ -14,17 +14,8 @@ To launch Tazor units tests, you can use the following command:
 	*cargo test* to launch tests in debug mode
 	*cargo test --release* to launch tests in release mode
 
-## Code Documentation
-Tazor code documentation is made also by Cargo with the following command:
+## Documentation
+Tazor documentation is made also by Cargo with the following command:
 
 	*cargo doc* to generate the documentation
 	*cargo doc --open* to open the documention in your browser
-
-## Documentation
-Tazor contains structure called _Calculator_ which can handle several kind of expression:
-- raw expression as '1 + 1' or 'cos(pi) * sqrt(2)'
-- expression defining a variable like this 'x = 1 + 1'
-- expression defining a function like this 'f: x, y = x * x + y * y
-
-This structure stores previously defined variables and functions to reuse them in another expression.
-
