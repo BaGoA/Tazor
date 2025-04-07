@@ -1,3 +1,8 @@
+//! Tazor
+//!
+//! Tazor is Rust library implementing a calculator based on mathematical expression
+//!
+
 pub mod expression;
 
 use expression::Expression;
