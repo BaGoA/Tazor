@@ -636,4 +636,44 @@ mod tests {
             Err(_) => assert!(false),
         }
     }
+
+    #[test]
+    fn test_calculator_process_expression_with_variables_and_function_variables_equal_to_variables()
+    {
+        let mut calculator = Calculator::new(evaluate);
+
+        let first_variable_name: String = String::from("x");
+        let first_variable_definition: String = String::from("1 + 1");
+
+        let first_expression: String =
+            format!("{} = {}", first_variable_name, first_variable_definition);
+
+        assert!(calculator.process(first_expression.as_str()).is_ok());
+
+        let second_variable_name: String = String::from("y");
+        let second_variables_definition: String = String::from("2 * 5");
+
+        let second_expression: String =
+            format!("{} = {}", second_variable_name, second_variables_definition);
+
+        assert!(calculator.process(second_expression.as_str()).is_ok());
+
+        let function_name: String = String::from("distance");
+        let function_variables: Vec<String> = vec![String::from("x"), String::from("y")];
+        let function_definition: String = format!(
+            "{} * {} + {} * {}",
+            function_variables[0],
+            function_variables[0],
+            function_variables[1],
+            function_variables[1]
+        );
+
+        let function_expression: String = format!(
+            "{}: {}, {} = {}",
+            function_name, function_variables[0], function_variables[1], function_definition
+        );
+
+        assert!(calculator.process(function_expression.as_str()).is_ok());
+        assert!(function_definition == calculator.functions[&function_name].1);
+    }
 }
