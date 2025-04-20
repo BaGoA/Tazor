@@ -57,18 +57,31 @@ impl Expression {
     /// The variables are given in argument through HashMap where
     /// pair (key, value) correspond respectively to name and value of variable
     pub fn replace_variables(&mut self, variables: &HashMap<String, f64>) {
-        let definition: &mut String = match self {
-            Self::Raw(raw_expression) => raw_expression,
-            Self::Variable(_, definition) => definition,
-            Self::Function(_, _, definition) => definition,
+        match self {
+            Self::Raw(definition) | Self::Variable(_, definition) => {
+                variables
+                    .iter()
+                    .for_each(|(variable_name, variable_value)| {
+                        let mut replaced_definition: String = definition
+                            .replace(variable_name, format!("{}", variable_value).as_str());
+
+                        core::mem::swap(definition, &mut replaced_definition);
+                    });
+            }
+            Self::Function(_, function_variables, definition) => {
+                variables
+                    .iter()
+                    .filter(|(variable_name, _)| {
+                        return !function_variables.contains(variable_name);
+                    })
+                    .for_each(|(variable_name, variable_value)| {
+                        let mut replaced_definition: String = definition
+                            .replace(variable_name, format!("{}", variable_value).as_str());
+
+                        core::mem::swap(definition, &mut replaced_definition);
+                    });
+            }
         };
-
-        for (variable_name, variable_value) in variables {
-            let mut replaced_definition: String =
-                definition.replace(variable_name, format!("{}", variable_value).as_str());
-
-            core::mem::swap(definition, &mut replaced_definition);
-        }
     }
 
     /// Recovery positions of function and its parenthesis in expression definition
