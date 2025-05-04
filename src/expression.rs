@@ -90,7 +90,7 @@ impl Expression {
         expression_definition: &String,
         fun_name: &String,
     ) -> Result<Option<(usize, usize, usize)>, String> {
-        // Get position of function and its parenthesis
+        // Get position of function
         let potential_start_position: Option<usize> = expression_definition.find(fun_name.as_str());
 
         if potential_start_position.is_none() {
@@ -99,6 +99,7 @@ impl Expression {
 
         let start_position: usize = potential_start_position.unwrap();
 
+        // Get position of opening parenthesis
         let start_search_parenthesis_position: usize = start_position + fun_name.len();
 
         let potential_opening_parenthesis_position: Option<usize> = expression_definition
@@ -113,15 +114,26 @@ impl Expression {
         let opening_parenthesis_position: usize =
             start_search_parenthesis_position + potential_opening_parenthesis_position.unwrap();
 
-        let closing_parenthesis_position: usize = start_search_parenthesis_position
+        // To get closing parenthesis, we initialize a counter to 1, then we increment it when we encounter
+        // an opening parenthesis or we decrement it when we encounter a closing parenthesis.
+        // When the counter reach 0, we have on closing parenthesis corresponding to function.
+        let mut parenthesis_counter: u8 = 1;
+
+        let closing_parenthesis_position: usize = opening_parenthesis_position
+            + 1
             + expression_definition
                 .chars()
-                .skip(start_search_parenthesis_position)
-                .position(|c| c == ')')
-                .ok_or(format!(
-                    "Error occurs in call of function {}: Missing closing parenthesis",
-                    fun_name
-                ))?;
+                .skip(opening_parenthesis_position + 1)
+                .take_while(|c| -> bool {
+                    match c {
+                        '(' => parenthesis_counter += 1,
+                        ')' => parenthesis_counter -= 1,
+                        _ => {}
+                    }
+
+                    return parenthesis_counter > 0;
+                })
+                .count();
 
         // Check if we handle a function, else we go to next function name
         let has_char_between_fun_name_and_first_parenthesis: bool = expression_definition
@@ -129,14 +141,7 @@ impl Expression {
             .chars()
             .any(|c| !c.is_whitespace());
 
-        let has_opening_parenthesis_between_parenthesis: bool = expression_definition
-            [(opening_parenthesis_position + 1)..closing_parenthesis_position]
-            .chars()
-            .any(|c| c == '(');
-
-        if has_char_between_fun_name_and_first_parenthesis
-            || has_opening_parenthesis_between_parenthesis
-        {
+        if has_char_between_fun_name_and_first_parenthesis {
             return Ok(None);
         }
 
@@ -192,8 +197,16 @@ impl Expression {
             let mut id: usize = 0;
 
             for variable in variables {
-                replaced_fun_definition =
-                    replaced_fun_definition.replace(variable, variable_values[id]);
+                if variable_values[id]
+                    .chars()
+                    .any(|c| c == '+' || c == '*' || c == '-' || c == '/')
+                {
+                    replaced_fun_definition = replaced_fun_definition
+                        .replace(variable, format!("({})", variable_values[id]).as_str());
+                } else {
+                    replaced_fun_definition =
+                        replaced_fun_definition.replace(variable, variable_values[id]);
+                }
 
                 id += 1;
             }
@@ -375,6 +388,39 @@ mod tests {
         match expression {
             Expression::Variable(_, replaced_expression) => {
                 assert_eq!(replaced_var_expression, replaced_expression)
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_expression_replace_functions_in_expression_using_expression_with_parenthesis_as_argument(
+    ) {
+        let mut functions: HashMap<String, (Vec<String>, String)> = HashMap::new();
+
+        functions.insert(
+            String::from("f"),
+            (
+                vec![String::from("x"), String::from("y")],
+                String::from("x + y"),
+            ),
+        );
+
+        functions.insert(
+            String::from("g"),
+            (vec![String::from("x")], String::from("x + 1")),
+        );
+
+        let raw_expression: String = String::from("f(2 * (4 - 2) + 1, 3) + g(3 * (7 - 4))");
+        let replaced_raw_expression: String =
+            String::from("((2 * (4 - 2) + 1) + 3) + ((3 * (7 - 4)) + 1)");
+
+        let mut expression: Expression = Expression::new(raw_expression.as_str());
+        expression.replace_functions(&functions).unwrap();
+
+        match expression {
+            Expression::Raw(replaced_expression) => {
+                assert_eq!(replaced_raw_expression, replaced_expression)
             }
             _ => assert!(false),
         }
