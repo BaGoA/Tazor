@@ -1,6 +1,6 @@
 [package]
 name = "tazor"
-version = "1.0.1"
+version = "1.0.2"
 authors = ["Bastian Gonzalez Acevedo <bastiangonzalezacevedo@gmail.com>"]
 edition = "2021"
 license-file = "LICENSE"
