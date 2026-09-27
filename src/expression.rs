@@ -1,5 +1,15 @@
 use std::collections::HashMap;
 
+/// Check if character is binary operator
+fn char_is_binary_operator(c: char) -> bool {
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
+}
+
+/// Check if character is comparison operator or part of them
+fn char_is_comparison_operator(c: char) -> bool {
+    return c == '<' || c == '>' || c == '=' || c == '!';
+}
+
 /// Kind of expression that we can parse
 ///
 /// Raw expression is an expression that we want directly evaluate as `1 + 1`
@@ -25,28 +35,40 @@ impl Expression {
     pub fn new(expression: &str) -> Self {
         return match expression.split_once('=') {
             // Here the expression define a variable or function
-            Some((name, definition)) => match name.split_once(':') {
-                // Here we have a function
-                Some((fun_name, fun_variables_compact)) => {
-                    let fun_variables: Vec<String> = fun_variables_compact
-                        .split(',')
-                        .map(|fun_variable_name: &str| {
-                            String::from(fun_variable_name.trim_start().trim_end())
-                        })
-                        .collect();
-
-                    return Self::Function(
-                        String::from(fun_name.trim_start().trim_end()),
-                        fun_variables,
-                        String::from(definition.trim_start().trim_end()),
-                    );
+            Some((name, definition)) => {
+                // Check if the character '=' is not a part of comparison operator ("<=, >=, ==, !=")
+                if name
+                    .trim_end()
+                    .ends_with(|c: char| char_is_comparison_operator(c))
+                    || definition.trim_start().starts_with('=')
+                {
+                    // Here we have a raw expresion with comparison operator
+                    return Self::Raw(String::from(expression));
                 }
-                // Here we have a variable
-                None => Self::Variable(
-                    String::from(name.trim_start().trim_end()),
-                    String::from(definition.trim_start().trim_end()),
-                ),
-            },
+
+                match name.split_once(':') {
+                    // Here we have a function
+                    Some((fun_name, fun_variables_compact)) => {
+                        let fun_variables: Vec<String> = fun_variables_compact
+                            .split(',')
+                            .map(|fun_variable_name: &str| {
+                                String::from(fun_variable_name.trim_start().trim_end())
+                            })
+                            .collect();
+
+                        return Self::Function(
+                            String::from(fun_name.trim_start().trim_end()),
+                            fun_variables,
+                            String::from(definition.trim_start().trim_end()),
+                        );
+                    }
+                    // Here we have a variable
+                    None => Self::Variable(
+                        String::from(name.trim_start().trim_end()),
+                        String::from(definition.trim_start().trim_end()),
+                    ),
+                }
+            }
             // Here we have a raw expression
             None => Self::Raw(String::from(expression)),
         };
@@ -199,7 +221,7 @@ impl Expression {
             for variable in variables {
                 if variable_values[id]
                     .chars()
-                    .any(|c| c == '+' || c == '*' || c == '-' || c == '/')
+                    .any(|c: char| char_is_binary_operator(c) || char_is_comparison_operator(c))
                 {
                     replaced_fun_definition = replaced_fun_definition
                         .replace(variable, format!("({})", variable_values[id]).as_str());
@@ -236,9 +258,35 @@ mod tests {
     }
 
     #[test]
+    fn test_expression_new_with_raw_expression_containing_comparison_operator() {
+        let expression: String = String::from("1 <= 2");
+
+        match Expression::new(expression.as_str()) {
+            Expression::Raw(raw_expression) => assert_eq!(raw_expression, expression),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
     fn test_expression_new_with_variable_definition() {
         let variable_name: String = String::from("x");
         let variable_definition: String = String::from("1 + 1");
+
+        let expression: String = format!("{} = {}", variable_name, variable_definition);
+
+        match Expression::new(expression.as_str()) {
+            Expression::Variable(name, definition) => {
+                assert_eq!(name, variable_name);
+                assert_eq!(definition, variable_definition);
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_expression_new_with_variable_definition_containing_coparison_operator() {
+        let variable_name: String = String::from("x");
+        let variable_definition: String = String::from("1 + 1 == 2");
 
         let expression: String = format!("{} = {}", variable_name, variable_definition);
 
@@ -414,6 +462,39 @@ mod tests {
         let raw_expression: String = String::from("f(2 * (4 - 2) + 1, 3) + g(3 * (7 - 4))");
         let replaced_raw_expression: String =
             String::from("((2 * (4 - 2) + 1) + 3) + ((3 * (7 - 4)) + 1)");
+
+        let mut expression: Expression = Expression::new(raw_expression.as_str());
+        expression.replace_functions(&functions).unwrap();
+
+        match expression {
+            Expression::Raw(replaced_expression) => {
+                assert_eq!(replaced_raw_expression, replaced_expression)
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_expression_replace_functions_in_expression_using_expression_containing_comparison_operator_with_parenthesis_as_argument(
+    ) {
+        let mut functions: HashMap<String, (Vec<String>, String)> = HashMap::new();
+
+        functions.insert(
+            String::from("f"),
+            (
+                vec![String::from("x"), String::from("y")],
+                String::from("x + y"),
+            ),
+        );
+
+        functions.insert(
+            String::from("g"),
+            (vec![String::from("x")], String::from("x + 1")),
+        );
+
+        let raw_expression: String = String::from("f(2 * (4 - 2) + 1, 3 < 5) + g(3 == (7 - 4))");
+        let replaced_raw_expression: String =
+            String::from("((2 * (4 - 2) + 1) + (3 < 5)) + ((3 == (7 - 4)) + 1)");
 
         let mut expression: Expression = Expression::new(raw_expression.as_str());
         expression.replace_functions(&functions).unwrap();

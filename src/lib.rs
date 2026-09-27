@@ -215,6 +215,28 @@ mod tests {
     }
 
     #[test]
+    fn test_calculator_process_raw_expression_containing_comparison_operator() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let expression: String = String::from("1 == 1");
+
+        match calculator.process(expression.as_str()) {
+            Ok(str_result) => {
+                let variable_name: String = String::from("last");
+                let variable_value: f64 = expression.len() as f64;
+
+                let str_reference: String = format!("{} = {}", variable_name, variable_value);
+                assert_eq!(str_result, str_reference);
+
+                assert_eq!(calculator.variables.len(), 1);
+                assert!(calculator.variables.contains_key(&variable_name));
+                assert_eq!(calculator.variables[&variable_name], variable_value);
+            }
+            Err(_) => assert!(false),
+        }
+    }
+
+    #[test]
     fn test_calculator_process_several_raw_expression() {
         let mut calculator = Calculator::new(evaluate);
 
@@ -262,6 +284,30 @@ mod tests {
 
         let variable_name: String = String::from("x");
         let variable_definition: String = String::from("1 + 1");
+
+        let expression: String = format!("{} = {}", variable_name, variable_definition);
+
+        match calculator.process(expression.as_str()) {
+            Ok(str_result) => {
+                let variable_value: f64 = variable_definition.len() as f64;
+
+                let str_reference: String = format!("{} = {}", variable_name, variable_value);
+                assert_eq!(str_result, str_reference);
+
+                assert_eq!(calculator.variables.len(), 1);
+                assert!(calculator.variables.contains_key(&variable_name));
+                assert_eq!(calculator.variables[&variable_name], variable_value);
+            }
+            Err(_) => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_calculator_process_variable_expression_containing_comparison_operator() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let variable_name: String = String::from("x");
+        let variable_definition: String = String::from("1 >= 0");
 
         let expression: String = format!("{} = {}", variable_name, variable_definition);
 
@@ -544,6 +590,71 @@ mod tests {
 
         let replaced_expression: String =
             String::from("3.14 * (6.89 / 5.43) - (2.4 * 2.4 + 4.3 * 4.3) + (2 * 3 - 7)");
+
+        match calculator.process(expression.as_str()) {
+            Ok(str_result) => {
+                let str_reference: String = format!("last = {}", replaced_expression.len());
+                assert_eq!(str_result, str_reference);
+            }
+            Err(_) => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_calculator_process_expression_with_functions_including_comparison_operator() {
+        let mut calculator = Calculator::new(evaluate);
+
+        let first_function_name: String = String::from("distance");
+        let first_function_variables: Vec<String> = vec![String::from("x"), String::from("y")];
+        let first_function_definition: String = format!(
+            "{} * {} + {} * {}",
+            first_function_variables[0],
+            first_function_variables[0],
+            first_function_variables[1],
+            first_function_variables[1]
+        );
+
+        let first_function_expression: String = format!(
+            "{}: {}, {} = {}",
+            first_function_name,
+            first_function_variables[0],
+            first_function_variables[1],
+            first_function_definition
+        );
+
+        assert!(calculator
+            .process(first_function_expression.as_str())
+            .is_ok());
+
+        let second_function_name: String = String::from("velocity");
+        let second_function_variables: Vec<String> =
+            vec![String::from("distance"), String::from("time")];
+
+        let second_function_definition: String = format!(
+            "{} / {}",
+            second_function_variables[0], second_function_variables[1]
+        );
+
+        let second_function_expression: String = format!(
+            "{}: {}, {} = {}",
+            second_function_name,
+            second_function_variables[0],
+            second_function_variables[1],
+            second_function_definition
+        );
+
+        assert!(calculator
+            .process(second_function_expression.as_str())
+            .is_ok());
+
+        let expression: String = format!(
+            "3.14 * {}(6.89, 5.43 <= 6.0) - {}(2.4, 4 == 4) + (2 * 3 - 7)",
+            second_function_name, first_function_name
+        );
+
+        let replaced_expression: String = String::from(
+            "3.14 * (6.89 / (5.43 <= 6.0)) - (2.4 * 2.4 + (4 == 4) * (4 == 4)) + (2 * 3 - 7)",
+        );
 
         match calculator.process(expression.as_str()) {
             Ok(str_result) => {
